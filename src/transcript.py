@@ -67,6 +67,7 @@ class TranscriptGenerator:
         # Format the prompt with research content
         prompt = self.prompt_template.format(
             research=research_content,
+            max_tokens=self.config["transcript"]["max_tokens"],
             char_limit=self.char_limit,
             host_name=self.config["transcript"].get("host_name", "Host"),
             expert_name=self.config["transcript"].get("expert_name", "Expert"),

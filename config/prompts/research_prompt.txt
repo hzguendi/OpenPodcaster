@@ -34,10 +34,12 @@ List 5-7 questions that a beginner might ask about this subject. These will help
 Suggest 3-5 quality resources (books, websites, courses) for learning more about this subject.
 
 IMPORTANT GUIDELINES:
-1. Be accurate and comprehensive but concise
+0. STRICTLY adhere to {max_tokens} token limit and {char_limit} character limit (hard limits from config.yml)
+1. Be accurate and comprehensive while staying within limits
 2. Present balanced viewpoints where relevant
 3. Use clear language but don't oversimplify complex ideas
 4. Include specific examples to illustrate points
 5. Organize information logically with clear headings
+6. If limits are exceeded, the system will truncate the response
 
-The research should be thorough but focused. Aim for depth rather than breadth. Your research will be used to create an engaging and educational podcast conversation.
+The research must strictly respect configured limits while being thorough and focused. Aim for depth rather than breadth. Your research will be used to create an engaging and educational podcast conversation. The system will automatically truncate any content exceeding {max_tokens} tokens or {char_limit} characters.

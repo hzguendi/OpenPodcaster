@@ -61,7 +61,11 @@ class ResearchGenerator:
         logger.info(f"Generating research for subject: {subject}")
         
         # Format the prompt
-        prompt = self.prompt_template.format(subject=subject)
+        prompt = self.prompt_template.format(
+        subject=subject,
+        max_tokens=self.config['research']['max_tokens'],
+        char_limit=self.config['research']['character_limit']
+    )
         
         # Create progress bar
         stream_tokens = self.config["research"].get("stream_tokens", False)
@@ -160,7 +164,12 @@ class ResearchGenerator:
             raise ConnectionError(f"Could not connect to Ollama API. Is Ollama running?")
             
         except requests.exceptions.HTTPError as e:
-            error_message, error_type = handle_api_error(response, "Ollama", "research generation")
+            # Handle streaming vs non-streaming response availability
+            if not stream_tokens and 'response' in locals():
+                error_message, error_type = handle_api_error(response, "Ollama", "research generation")
+            else:
+                error_message = f"Ollama API error: {str(e)}"
+                error_type = "http_error"
             logger.error(error_message)
             raise Exception(error_message) from e
             

@@ -7,6 +7,7 @@ RESEARCH CONTENT:
 
 TRANSCRIPT FORMAT:
 STRICT RULES:
+0. STRICTLY adhere to {max_tokens} token limit and {char_limit} character limit (from config.yml)
 1. Speaker tags MUST use exact format without markdown:
    - "{host_name}: " (no bold/formatting)
    - "{expert_name}: " 
@@ -67,11 +68,12 @@ IMPORTANT GUIDELINES:
 3. Use analogies and examples to explain complex concepts
 4. Ensure the beginner asks questions the audience might have
 5. Keep the tone friendly, curious, and engaging
-6. Don't exceed the character limit of {char_limit} characters
+6. STRICTLY respect {max_tokens} token limit and {char_limit} character limit (hard limits from config.yml)
+7. If limits are exceeded, the system will truncate the response
 7. Make sure each speaker has a distinct voice and perspective
 8. Include some brief moments of casual banter to make it feel authentic
 
-Your transcript should capture the feeling of a real conversation between these three people while effectively teaching the audience about the subject.
+Your transcript must strictly respect the configured limits while capturing the feeling of a real conversation between these three people and effectively teaching about the subject. The system will automatically truncate any content exceeding {max_tokens} tokens or {char_limit} characters.
 
 STRUCTURED NOTES SECTION:
 <notes>
