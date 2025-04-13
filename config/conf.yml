@@ -14,8 +14,8 @@ research:
   # ollama gemma3:1b
   model: gemma3:1b # For openrouter, use the full model path
   temperature: 0.7
-  max_tokens: 1000
-  character_limit: 1000  # Limits the size of the research output
+  max_tokens: 4000
+  character_limit: 8000  # Limits the size of the research output
   stream_tokens: true  # Enable token streaming in progress bar
 
 # Transcript Generation
@@ -23,8 +23,8 @@ transcript:
   provider: ollama  # ollama, openrouter, deepseek
   model: gemma3:1b  # For openrouter, use the full model path
   temperature: 0.8
-  max_tokens: 1000
-  character_limit: 1000  # Limits the size of the transcript output
+  max_tokens: 4000
+  character_limit: 8000  # Limits the size of the transcript output
   stream_tokens: true  # Enable token streaming in progress bar
   
   # Speaker names that will appear in the transcript

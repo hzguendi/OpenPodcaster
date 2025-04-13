@@ -1,255 +1,253 @@
-# Podcast Generator
+# OpenPodcaster
 
-A powerful, configurable tool for automatically generating educational podcasts on any subject. This project creates conversational, engaging podcasts featuring a host, an expert, and a beginner discussing the specified topic.
+<div align="center">
 
-## 🎙️ Features
+**AI-Powered Educational Podcast Generator**
 
-- **End-to-End Podcast Creation**: From subject to audio file in a single command
-- **Four-Step Pipeline**:
-  1. Research generation using LLMs
-  2. Transcript creation
-  3. Text-to-speech conversion
-  4. Final podcast assembly
-- **Token Streaming Support**:
-  - Real-time display of generated tokens in progress bars
-  - Visual feedback during AI generation processes
-  - Configurable for research and transcript generation
-- **Multiple AI Provider Support**:
-  - Research/Transcript: Ollama, OpenRouter, DeepSeek
-  - TTS: 
-    - ElevenLabs (cloud)
-    - Gemini (cloud)
-    - Coqui (offline/local)
-- **Highly Configurable**:
-  - Voice characteristics for each speaker
-  - Audio quality settings
-  - Character limits and model parameters
-  - Customizable prompt templates
-- **Developer-Friendly**:
-  - Colored console output
-  - Detailed progress tracking
-  - Comprehensive logging
-  - Modular architecture
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![FFmpeg Required](https://img.shields.io/badge/requires-FFmpeg-red.svg)](https://ffmpeg.org/)
+
+</div>
+
+## 🎙️ Overview
+
+OpenPodcaster is a powerful, configurable tool for automatically generating educational podcasts on any subject. With a single command, it creates engaging, conversational podcasts featuring a host, an expert, and a beginner discussing your chosen topic. Perfect for educators, content creators, and anyone looking to produce professional-quality educational audio content without extensive production resources.
+
+## ✨ Key Features
+
+### End-to-End Podcast Creation
+- **Single Command Generation**: From topic to complete podcast in one step
+- **Smart Pipeline**: Research → Transcript → Speech → Assembly
+- **Dynamic Content**: Unique, educational content tailored to any subject
+
+### Multiple AI Provider Support
+- **Research & Transcript Generation**:
+  - 🤖 **Local**: Ollama (run models on your own hardware)
+  - ☁️ **Cloud**: OpenRouter, DeepSeek (access powerful cloud models)
+- **Text-to-Speech**:
+  - 🎤 **ElevenLabs**: Premium studio-quality voices
+  - 🔊 **Gemini**: Google's advanced TTS technology
+  - 💻 **Coqui**: Offline local TTS (no API key needed)
+
+### Interactive Experience
+- **Token Streaming**: Watch content generation in real-time
+- **Progress Visualization**: Clear progress indicators for each step
+- **Detailed Logging**: Comprehensive logs for troubleshooting
+
+### High Customization
+- **Voice Personalization**: Configure unique voices for each speaker
+- **Audio Engineering**: Control audio quality, effects, and mixing
+- **Content Control**: Set research depth and podcast length
+- **Custom Prompts**: Design your own prompt templates
 
 ## 📋 Requirements
 
-- Python 3.8-3.12 (Coqui TTS requires Python <3.13)
-- FFmpeg installed on your system
-- API keys for cloud providers (not needed for Coqui TTS)
-
-### Python 3.13 Compatibility
-
-Python 3.13 removed the built-in `audioop` module that pydub depends on and has incompatibilities with Coqui TTS. The application handles this by:
-
-1. Automatically detecting missing modules and switching to a direct FFmpeg fallback
-2. Using simplified audio processing that concatenates files without advanced audio manipulation
-
-If you're using Python 3.13, some advanced audio features (volume normalization, fades) may be limited, but the core functionality will work as long as FFmpeg is installed.
+- **Python**: 3.8-3.12 recommended
+- **FFmpeg**: Required for audio processing
+- **API Keys**: For cloud services (not needed for local-only usage)
 
 ## 🔧 Installation
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/podcast_gen.git
-   cd podcast_gen
-   ```
+### Quick Start
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/OpenPodcaster.git
+cd OpenPodcaster
 
-3. Install FFmpeg (if not already installed):
-   - **Ubuntu/Debian**: `sudo apt-get install ffmpeg`
-   - **macOS with Homebrew**: `brew install ffmpeg`
-   - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+# Create virtual environment (recommended)
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-4. Set up configuration:
-   ```bash
-   cp .env.example .env
-   # Edit .env file with your API keys
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-## ⚙️ Configuration
-
-### API Keys
-
-Edit the `.env` file to add your API keys:
-
-```
-OLLAMA_API_KEY=your_ollama_key
-OPENROUTER_API_KEY=your_openrouter_key
-DEEPSEEK_API_KEY=your_deepseek_key
-GEMINI_API_KEY=your_gemini_key
-ELEVENLABS_API_KEY=your_elevenlabs_key
+# Set up configuration
+cp .env.example .env
+# Edit .env file with your API keys
 ```
 
-### Main Configuration
+### Platform-Specific FFmpeg Installation
 
-The `config/conf.yml` file contains all configurables:
+<details>
+<summary>📌 Ubuntu/Debian</summary>
 
-- **Research settings**: Provider, model, temperature, token limits
-- **Transcript settings**: Character limits, speaker names
-- **TTS settings**: Voice IDs, speaking rates, stability (ElevenLabs, Gemini, Coqui)
-- **Audio settings**: Sample rate, bitrate, normalization
-- **API timeouts**: Custom timeout values for each provider
-- **API endpoints**: URLs for various provider APIs
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
+</details>
 
-### Prompt Templates
+<details>
+<summary>📌 macOS</summary>
 
-Customize the prompt templates in `config/prompts/`:
-- `research_prompt.txt`: Template for generating research
-- `transcript_prompt.txt`: Template for creating the podcast transcript
+```bash
+# With Homebrew
+brew install ffmpeg
 
-## 🚀 Usage
+# With MacPorts
+port install ffmpeg
+```
+</details>
 
-Basic usage:
+<details>
+<summary>📌 Windows</summary>
+
+1. Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+2. Add to your PATH environment variable
+3. Or use package managers:
+   ```
+   winget install ffmpeg
+   # or
+   choco install ffmpeg
+   ```
+</details>
+
+## 🚀 Quick Usage
+
+Generate your first podcast with a single command:
 
 ```bash
 python main.py "The history and science of coffee"
 ```
 
-The output will be saved in a timestamped directory:
+Your podcast will be created in a timestamped directory:
+
 ```
 data/YYYY-MM-DD_HH-MM-SS/
 ├── research.md          # Generated research
 ├── transcript.txt       # Generated podcast transcript
 ├── audio_clips/         # Individual audio segments
-│   ├── 000_host.mp3
-│   ├── 001_expert.mp3
-│   └── ...
 ├── podcast.mp3          # Final assembled podcast
 └── processing.log       # Processing log
 ```
 
-## 🔍 Advanced Usage
+## 🔍 Configuration
 
-### Customizing Speaker Voices
+OpenPodcaster is highly configurable through two main files:
 
-Edit `conf.yml` to change voice settings:
+1. **`.env`**: For API keys and critical overrides
+2. **`config/conf.yml`**: For detailed application settings
 
-```yaml
-tts:
-  provider: coqui  # Use local Coqui TTS
-  host:
-    # Coqui settings
-    model: tts_models/en/ljspeech/tacotron2-DDC
-    vocoder: vocoder_models/en/ljspeech/hifigan_v2
-    language: en
-  expert:
-    model: tts_models/en/vctk/vits
-    speaker: p225  # Specific speaker ID from VCTK dataset
-  beginner:
-    model: tts_models/multilingual/multi-dataset/your_tts
-    language: en
+<details>
+<summary>📝 Essential .env Configuration</summary>
+
 ```
+# Add your API keys here
+OPENROUTER_API_KEY=your_openrouter_key
+ELEVENLABS_API_KEY=your_elevenlabs_key
 
-### Adding Background Music
-
-Add paths to intro/outro music in `conf.yml`:
-
-```yaml
-assembler:
-  intro_music: "/path/to/intro_music.mp3"
-  outro_music: "/path/to/outro_music.mp3"
+# Optional overrides
+RESEARCH_MODEL=anthropic/claude-3-opus-20240229
+TTS_PROVIDER=elevenlabs
 ```
+</details>
 
-### Enabling Token Streaming
-
-Enable token streaming in the progress bars for real-time feedback during generation:
-
-```yaml
-research:
-  stream_tokens: true  # Show incoming tokens in progress bar during research
-
-transcript:
-  stream_tokens: true  # Show incoming tokens in progress bar during transcript generation
-```
-
-When enabled, you'll see each token as it's generated and the progress bar will show completion against the maximum expected tokens.
-
-### Changing Models
-
-Change the AI models in `conf.yml`:
+<details>
+<summary>📝 Core conf.yml Settings</summary>
 
 ```yaml
+# Key sections include:
 research:
   provider: openrouter
-  model: anthropic/claude-3-opus-20240229  # Change to a different model
+  model: anthropic/claude-3-opus-20240229
+  temperature: 0.7
+
+transcript:
+  host_name: HOST
+  expert_name: EXPERT
+  beginner_name: BEGINNER
+
+tts:
+  provider: elevenlabs
+  host:
+    voice_id: pNInz6obpgDQGcFmaJgB
+    stability: 0.5
+
+assembler:
+  intro_music: "/path/to/music.mp3"
+  normalize_volume: true
 ```
 
-### Configuring API Timeouts
+See [CONFIGURATION.md](CONFIGURATION.md) for complete documentation.
+</details>
 
-Adjust the timeout values in the `api_timeouts` section of `conf.yml` to handle large requests or slower responses from API providers:
-
-```yaml
-api_timeouts:
-  ollama_research: 300   # 5 minutes for research generation with Ollama
-  ollama_transcript: 600  # 10 minutes for transcript generation with Ollama
-  openrouter: 180        # 3 minutes for OpenRouter requests
-  deepseek: 180          # 3 minutes for DeepSeek requests
-  elevenlabs: 60         # 1 minute for ElevenLabs TTS requests
-```
-
-For local Ollama models, especially larger ones, you may need to increase timeouts significantly to allow for loading the model and generating lengthy content.
-
-## 📁 Project Structure
+## 📊 Project Structure
 
 ```
-podcast_gen/
-├── config/
-│   ├── conf.yml                   # Main configuration
-│   └── prompts/                   # Prompt templates
+OpenPodcaster/
+├── config/                      # Configuration files
+│   ├── conf.yml                 # Main config
+│   └── prompts/                 # Prompt templates
 │       ├── research_prompt.txt
 │       └── transcript_prompt.txt
-├── data/                          # Output directory
-├── src/
-│   ├── research.py                # Research generation
-│   ├── transcript.py              # Transcript generation
-│   ├── tts.py                     # Text-to-speech conversion
-│   ├── assembler.py               # Audio assembly
-│   └── utils/                     # Utility modules
-│       ├── config_loader.py
-│       ├── file_utils.py
-│       ├── logging_utils.py
-│       └── progress.py
-├── .env.example                   # Environment variables template
-├── main.py                        # Entry point
-└── requirements.txt               # Dependencies
+├── data/                        # Output directory
+├── src/                         # Source code
+│   ├── research.py              # Research generation
+│   ├── transcript.py            # Transcript creation
+│   ├── tts.py                   # Text-to-speech
+│   ├── assembler.py             # Audio assembly
+│   └── utils/                   # Utility modules
+├── .env                         # Environment variables
+├── main.py                      # Entry point
+└── requirements.txt             # Dependencies
 ```
+
+## 🛠️ Advanced Usage
+
+OpenPodcaster offers extensive customization for advanced users. See [USAGE_EXAMPLES.md](USAGE_EXAMPLES.md) for detailed examples including:
+
+- Using different AI models for research and transcripts
+- Customizing voice characteristics for each speaker
+- Adding background music and sound effects
+- Optimizing output quality and file size
+- Using offline providers for complete privacy
+
+## 📝 Logging and Troubleshooting
+
+OpenPodcaster provides comprehensive logging:
+
+- **Console Output**: Color-coded for easy reading
+- **Log Files**: Detailed logs stored with each podcast
+- **Configurable Level**: Set verbosity in `conf.yml`
+
+For common issues and solutions, see the [Troubleshooting](#troubleshooting) section below.
 
 ## ❓ Troubleshooting
 
-### API Connection Issues
-- Check your API keys in `.env`
-- Verify internet connection
-- Ensure API endpoints in `conf.yml` are correct
+<details>
+<summary>🔍 API Connection Issues</summary>
 
-### Audio Processing Problems
-- Verify FFmpeg is installed correctly
-- Check file permissions
-- Ensure output directories are writable
+- Verify API keys in `.env`
+- Check internet connectivity
+- Confirm API endpoints in `conf.yml`
+- For Ollama: ensure Ollama service is running locally
+</details>
 
-### API Timeout Issues
-- If experiencing timeout errors with Ollama or other providers, adjust the timeout values in the `api_timeouts` section of `conf.yml`
-- For large models or complex requests, consider increasing timeouts significantly
+<details>
+<summary>🔍 Audio Processing Problems</summary>
 
-### Memory Issues
-- Reduce character limits in `conf.yml`
-- Use smaller/more efficient models
-- Reduce audio quality settings
+- Verify FFmpeg is installed and accessible
+- Check file permissions for output directories
+- For Python 3.13+: some audio features will be limited
+</details>
 
-## 📝 Logging
+<details>
+<summary>🔍 Memory and Performance Issues</summary>
 
-Logs are saved in:
-- Console (with color coding)
-- `data/YYYY-MM-DD_HH-MM-SS/processing.log`
+- Reduce model sizes in `conf.yml`
+- Lower character limits for research and transcript
+- For local models: ensure adequate system resources
+</details>
 
-Adjust log level in `conf.yml`:
-```yaml
-logging:
-  level: DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-```
+<details>
+<summary>🔍 Timeout Errors</summary>
+
+- Increase timeout values in `api_timeouts` section of `conf.yml`
+- Consider using smaller models for faster generation
+- Verify API provider status
+</details>
 
 ## 📄 License
 
@@ -257,6 +255,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgements
 
-- ElevenLabs for TTS capabilities
-- Google Gemini for TTS capabilities
-- Various LLM providers for research and transcript generation
+- Thanks to the various LLM and TTS providers for their APIs
+- FFmpeg for audio processing capabilities
+- The open-source community for invaluable tools and libraries
