@@ -3,7 +3,7 @@
 
 # Logging Configuration
 logging:
-  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   console_output: true
   file_output: true
 

@@ -231,8 +231,13 @@ class TranscriptGenerator:
         # Initialize response
         response_text = ""
         token_count = 0
+        total_progress = 0  # Track total progress updates
         max_tokens = self.config["transcript"].get("max_tokens", 8000)
+        update_interval = 0.1  # seconds
         last_update_time = time.time()
+        
+        # Track batches of tokens for smoother progress updates
+        token_batch = []
         
         try:
             with requests.post(url, json=payload, headers=headers, timeout=timeout, stream=True) as response:
@@ -254,10 +259,25 @@ class TranscriptGenerator:
                                 token = data['response']
                                 response_text += token
                                 token_count += 1
+                                token_batch.append(token)
                                 
-                                # Update progress bar
-                                self._update_stream_progress(progress, token, token_count, last_update_time)
-                                last_update_time = time.time()
+                                # Always update the token display with latest token
+                                # But only show display without updating progress counter
+                                progress.update_token(token)
+                                
+                                # Update progress in batches for smoother display
+                                current_time = time.time()
+                                if current_time - last_update_time >= update_interval:
+                                    # Update progress with batch size
+                                    batch_size = len(token_batch)
+                                    if batch_size > 0:
+                                        # Calculate percentage of max_tokens
+                                        progress_step = min(batch_size, max_tokens - total_progress)
+                                        if progress_step > 0:
+                                            progress.update(progress_step)
+                                            total_progress += progress_step
+                                            token_batch = []
+                                            last_update_time = current_time
                             
                             # Check for end of stream
                             if data.get('done', False):
@@ -285,10 +305,24 @@ class TranscriptGenerator:
                                         token = delta['content']
                                         response_text += token
                                         token_count += 1
+                                        token_batch.append(token)
                                         
-                                        # Update progress bar
-                                        self._update_stream_progress(progress, token, token_count, last_update_time)
-                                        last_update_time = time.time()
+                                        # Always update the token display with latest token
+                                        progress.update_token(token)
+                                        
+                                        # Update progress in batches for smoother display
+                                        current_time = time.time()
+                                        if current_time - last_update_time >= update_interval:
+                                            # Update progress with batch size
+                                            batch_size = len(token_batch)
+                                            if batch_size > 0:
+                                                # Calculate percentage of max_tokens
+                                                progress_step = min(batch_size, max_tokens - total_progress)
+                                                if progress_step > 0:
+                                                    progress.update(progress_step)
+                                                    total_progress += progress_step
+                                                    token_batch = []
+                                                    last_update_time = current_time
                     except json.JSONDecodeError as e:
                         logger.warning(f"Failed to decode JSON from {provider} stream: {e}")
                         continue
@@ -296,30 +330,27 @@ class TranscriptGenerator:
                         logger.warning(f"Error processing {provider} stream line: {e}")
                         continue
             
-            # Final progress update
-            progress.update(max_tokens - token_count, desc="Transcript generation completed")
+            # Process any remaining tokens in the batch
+            if token_batch:
+                batch_size = len(token_batch)
+                progress_step = min(batch_size, max_tokens - total_progress)
+                if progress_step > 0:
+                    progress.update(progress_step)
+                    total_progress += progress_step
+            
+            # Set progress to 100% when complete
+            remaining_progress = max_tokens - total_progress
+            if remaining_progress > 0:
+                progress.update(remaining_progress)
+            
+            progress.pbar.set_description("Transcript generation completed")
             return response_text
                 
         except Exception as e:
             logger.error(f"Error processing streaming response from {provider}: {str(e)}")
             raise
     
-    def _update_stream_progress(self, progress, token, token_count, last_update_time):
-        """Helper method to update the progress bar for streaming tokens
-        
-        Args:
-            progress: Progress bar instance
-            token: Current token
-            token_count: Current token count
-            last_update_time: Last time progress was updated
-        """
-        # Update progress bar at a reasonable interval
-        current_time = time.time()
-        if current_time - last_update_time >= 0.1:  # Update every 0.1 seconds
-            progress.update(1, token=token)
-        else:
-            # Just update the token display without incrementing the counter
-            progress.update_token(token)
+
     
     def _generate_openrouter(self, prompt):
         """Generate transcript using OpenRouter"""

@@ -97,6 +97,11 @@ class PodcastAssembler:
         """
         logger.info("Assembling podcast audio")
         
+        # Check if there are any audio files to process
+        if not audio_files:
+            logger.error("No audio files to assemble")
+            raise ValueError("Cannot assemble empty list of audio files")
+        
         # Create progress bar
         progress = ProgressBar(
             total=len(audio_files) + 2,  # Files + intro + outro
@@ -227,6 +232,11 @@ class PodcastAssembler:
         """
         logger.info("Using ffmpeg directly to concatenate audio files (fallback mode)")
         
+        # Check if there are any audio files to process
+        if not audio_files:
+            logger.error("No audio files to concatenate")
+            raise ValueError("Cannot concatenate empty list of audio files")
+            
         # First verify that all files exist
         missing_files = []
         for file_info in audio_files:
@@ -254,6 +264,11 @@ class PodcastAssembler:
     
     def _concat_with_concat_demuxer(self, audio_files, output_file):
         """Concatenate using ffmpeg concat demuxer"""
+        # Check if there are any audio files to process
+        if not audio_files:
+            logger.error("No audio files to concatenate")
+            raise ValueError("Cannot concatenate empty list of audio files")
+            
         # Create a temporary file list for ffmpeg
         with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as f:
             file_list_path = f.name
@@ -286,6 +301,11 @@ class PodcastAssembler:
     
     def _concat_with_filter_complex(self, audio_files, output_file):
         """Concatenate using ffmpeg filter_complex (more compatible)"""
+        # Check if there are any audio files to process
+        if not audio_files:
+            logger.error("No audio files to concatenate")
+            raise ValueError("Cannot concatenate empty list of audio files")
+            
         # Build the filter_complex command
         inputs = []
         for file_info in audio_files:

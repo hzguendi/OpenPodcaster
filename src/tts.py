@@ -16,7 +16,7 @@ from enum import Enum
 import time
 
 
-from src.utils.api_stats import handle_api_error
+from src.utils.api_stats import handle_api_error, APIStatsTracker
 
 from src.utils.progress import ProgressBar
 from src.utils.file_utils import ensure_directory
@@ -54,6 +54,9 @@ class TTSGenerator:
         for speaker in Speaker:
             speaker_name = speaker.value
             self.voice_settings[speaker_name] = config["tts"].get(speaker_name, {})
+        
+        # Initialize API stats tracker
+        self.api_stats = APIStatsTracker(config)
         
         logger.debug(f"Initialized TTS generator with provider: {self.provider}")
     
