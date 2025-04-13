@@ -10,9 +10,13 @@ import json
 import requests
 import re
 import tempfile
+import base64
 from pathlib import Path
 from enum import Enum
 import time
+
+
+from src.utils.api_stats import handle_api_error
 
 from src.utils.progress import ProgressBar
 from src.utils.file_utils import ensure_directory
@@ -296,14 +300,56 @@ class TTSGenerator:
             "xi-api-key": self.api_key
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        start_time = time.time()
+        success = False
+        error_type = None
+        text_length = len(clean_text)
+        audio_size = 0
         
-        # Save audio file
-        with open(output_file, "wb") as f:
-            f.write(response.content)
-        
-        logger.debug(f"Saved audio to {output_file}")
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            # Save audio file
+            with open(output_file, "wb") as f:
+                f.write(response.content)
+            
+            audio_size = len(response.content)
+            success = True
+            logger.debug(f"Saved audio to {output_file}")
+            
+        except requests.exceptions.Timeout:
+            error_type = "timeout"
+            logger.error(f"Timeout while connecting to ElevenLabs API")
+            raise TimeoutError(f"Timeout while connecting to ElevenLabs API")
+            
+        except requests.exceptions.ConnectionError:
+            error_type = "connection_error"
+            logger.error(f"Could not connect to ElevenLabs API")
+            raise ConnectionError(f"Could not connect to ElevenLabs API")
+            
+        except requests.exceptions.HTTPError as e:
+            error_message, error_type = handle_api_error(response, "ElevenLabs", "speech generation")
+            logger.error(error_message)
+            raise Exception(error_message) from e
+            
+        except Exception as e:
+            error_type = "unknown"
+            logger.error(f"Error generating speech with ElevenLabs: {str(e)}")
+            raise
+            
+        finally:
+            latency = time.time() - start_time
+            self.api_stats.record_request(
+                provider="elevenlabs",
+                model=model_id,
+                request_type="tts",
+                success=success,
+                error_type=error_type,
+                tokens_in=text_length,
+                tokens_out=audio_size,
+                latency=latency
+            )
     
     def _generate_gemini(self, text, output_file, speaker_type):
         """
@@ -359,18 +405,71 @@ class TTSGenerator:
             "X-Goog-Api-Key": self.api_key
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        start_time = time.time()
+        success = False
+        error_type = None
+        text_length = len(clean_text)
+        audio_size = 0
+        model_name = "google_tts"
         
-        # Decode the base64 audio content
-        import base64
-        audio_content = base64.b64decode(response.json()["audioContent"])
-        
-        # Save audio file
-        with open(output_file, "wb") as f:
-            f.write(audio_content)
-        
-        logger.debug(f"Saved audio to {output_file}")
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            
+            # Check for expected response format
+            if "audioContent" not in response_data:
+                raise ValueError("Invalid response format from Gemini API: 'audioContent' not found")
+            
+            # Decode the base64 audio content
+            audio_content = base64.b64decode(response_data["audioContent"])
+            audio_size = len(audio_content)
+            
+            # Save audio file
+            with open(output_file, "wb") as f:
+                f.write(audio_content)
+            
+            success = True
+            logger.debug(f"Saved audio to {output_file}")
+            
+        except requests.exceptions.Timeout:
+            error_type = "timeout"
+            logger.error(f"Timeout while connecting to Gemini API")
+            raise TimeoutError(f"Timeout while connecting to Gemini API")
+            
+        except requests.exceptions.ConnectionError:
+            error_type = "connection_error"
+            logger.error(f"Could not connect to Gemini API")
+            raise ConnectionError(f"Could not connect to Gemini API")
+            
+        except requests.exceptions.HTTPError as e:
+            error_message, error_type = handle_api_error(response, "Gemini", "speech generation")
+            logger.error(error_message)
+            raise Exception(error_message) from e
+            
+        except (KeyError, ValueError) as e:
+            error_type = "invalid_response"
+            logger.error(f"Invalid response from Gemini API: {str(e)}")
+            raise ValueError(f"Invalid response from Gemini API: {str(e)}")
+            
+        except Exception as e:
+            error_type = "unknown"
+            logger.error(f"Error generating speech with Gemini: {str(e)}")
+            raise
+            
+        finally:
+            latency = time.time() - start_time
+            self.api_stats.record_request(
+                provider="gemini",
+                model=model_name,
+                request_type="tts",
+                success=success,
+                error_type=error_type,
+                tokens_in=text_length,
+                tokens_out=audio_size,
+                latency=latency
+            )
 
 
 def generate_speech(transcript, output_dir, config):

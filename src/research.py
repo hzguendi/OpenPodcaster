@@ -8,7 +8,11 @@ import os
 import logging
 import json
 import requests
+import time
 from pathlib import Path
+
+
+from src.utils.api_stats import handle_api_error
 
 from src.utils.file_utils import save_text_file, get_prompt_content
 from src.utils.progress import ProgressBar
@@ -98,10 +102,60 @@ class ResearchGenerator:
             "Content-Type": "application/json"
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        start_time = time.time()
+        success = False
+        error_type = None
+        tokens_in = len(prompt.split())
+        tokens_out = 0
         
-        return response.json()["response"]
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            content = response_data["response"]
+            tokens_out = len(content.split())
+            success = True
+            
+            return content
+            
+        except requests.exceptions.Timeout:
+            error_type = "timeout"
+            logger.error(f"Timeout while connecting to Ollama API")
+            raise TimeoutError(f"Timeout while connecting to Ollama API")
+            
+        except requests.exceptions.ConnectionError:
+            error_type = "connection_error"
+            logger.error(f"Could not connect to Ollama API. Is Ollama running?")
+            raise ConnectionError(f"Could not connect to Ollama API. Is Ollama running?")
+            
+        except requests.exceptions.HTTPError as e:
+            error_message, error_type = handle_api_error(response, "Ollama", "research generation")
+            logger.error(error_message)
+            raise Exception(error_message) from e
+            
+        except KeyError as e:
+            error_type = "invalid_response"
+            logger.error(f"Invalid response from Ollama API: {str(e)}")
+            raise ValueError(f"Invalid response from Ollama API: {str(e)}")
+            
+        except Exception as e:
+            error_type = "unknown"
+            logger.error(f"Error generating content with Ollama: {str(e)}")
+            raise
+            
+        finally:
+            latency = time.time() - start_time
+            self.api_stats.record_request(
+                provider="ollama",
+                model=self.model,
+                request_type="research",
+                success=success,
+                error_type=error_type,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                latency=latency
+            )
     
     def _generate_openrouter(self, prompt):
         """Generate content using OpenRouter"""
@@ -124,10 +178,71 @@ class ResearchGenerator:
             "HTTP-Referer": self.config.get("api_urls", {}).get("referer", "http://localhost")
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        start_time = time.time()
+        success = False
+        error_type = None
+        tokens_in = len(prompt.split())
+        tokens_out = 0
         
-        return response.json()["choices"][0]["message"]["content"]
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=120)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            
+            # Check for expected response format
+            if "choices" not in response_data or not response_data["choices"]:
+                raise ValueError("Invalid response format from OpenRouter API: 'choices' not found")
+                
+            content = response_data["choices"][0]["message"]["content"]
+            
+            # Get token usage if available
+            if "usage" in response_data:
+                tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
+                tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
+            else:
+                tokens_out = len(content.split())
+                
+            success = True
+            return content
+            
+        except requests.exceptions.Timeout:
+            error_type = "timeout"
+            logger.error(f"Timeout while connecting to OpenRouter API")
+            raise TimeoutError(f"Timeout while connecting to OpenRouter API")
+            
+        except requests.exceptions.ConnectionError:
+            error_type = "connection_error"
+            logger.error(f"Could not connect to OpenRouter API")
+            raise ConnectionError(f"Could not connect to OpenRouter API")
+            
+        except requests.exceptions.HTTPError as e:
+            error_message, error_type = handle_api_error(response, "OpenRouter", "research generation")
+            logger.error(error_message)
+            raise Exception(error_message) from e
+            
+        except (KeyError, ValueError) as e:
+            error_type = "invalid_response"
+            logger.error(f"Invalid response from OpenRouter API: {str(e)}")
+            raise ValueError(f"Invalid response from OpenRouter API: {str(e)}")
+            
+        except Exception as e:
+            error_type = "unknown"
+            logger.error(f"Error generating content with OpenRouter: {str(e)}")
+            raise
+            
+        finally:
+            latency = time.time() - start_time
+            self.api_stats.record_request(
+                provider="openrouter",
+                model=self.model,
+                request_type="research",
+                success=success,
+                error_type=error_type,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                latency=latency
+            )
     
     def _generate_deepseek(self, prompt):
         """Generate content using DeepSeek"""
@@ -149,10 +264,71 @@ class ResearchGenerator:
             "Authorization": f"Bearer {self.api_key}"
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        start_time = time.time()
+        success = False
+        error_type = None
+        tokens_in = len(prompt.split())
+        tokens_out = 0
         
-        return response.json()["choices"][0]["message"]["content"]
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=120)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            
+            # Check for expected response format
+            if "choices" not in response_data or not response_data["choices"]:
+                raise ValueError("Invalid response format from DeepSeek API: 'choices' not found")
+                
+            content = response_data["choices"][0]["message"]["content"]
+            
+            # Get token usage if available
+            if "usage" in response_data:
+                tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
+                tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
+            else:
+                tokens_out = len(content.split())
+                
+            success = True
+            return content
+            
+        except requests.exceptions.Timeout:
+            error_type = "timeout"
+            logger.error(f"Timeout while connecting to DeepSeek API")
+            raise TimeoutError(f"Timeout while connecting to DeepSeek API")
+            
+        except requests.exceptions.ConnectionError:
+            error_type = "connection_error"
+            logger.error(f"Could not connect to DeepSeek API")
+            raise ConnectionError(f"Could not connect to DeepSeek API")
+            
+        except requests.exceptions.HTTPError as e:
+            error_message, error_type = handle_api_error(response, "DeepSeek", "research generation")
+            logger.error(error_message)
+            raise Exception(error_message) from e
+            
+        except (KeyError, ValueError) as e:
+            error_type = "invalid_response"
+            logger.error(f"Invalid response from DeepSeek API: {str(e)}")
+            raise ValueError(f"Invalid response from DeepSeek API: {str(e)}")
+            
+        except Exception as e:
+            error_type = "unknown"
+            logger.error(f"Error generating content with DeepSeek: {str(e)}")
+            raise
+            
+        finally:
+            latency = time.time() - start_time
+            self.api_stats.record_request(
+                provider="deepseek",
+                model=self.model,
+                request_type="research",
+                success=success,
+                error_type=error_type,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                latency=latency
+            )
 
 
 def generate_research(subject, output_file, config):

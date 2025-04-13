@@ -28,6 +28,7 @@ from src.research import generate_research
 from src.transcript import generate_transcript
 from src.tts import generate_speech
 from src.assembler import assemble_podcast
+from src.utils.api_stats import validate_api_key
 
 
 def parse_args():
@@ -69,6 +70,22 @@ def main():
     setup_logging(config["logging"]["level"], log_file)
     
     logger = logging.getLogger(__name__)
+
+    # Validate API keys
+    try:
+        # Verify API keys section exists
+        if "api_keys" not in config:
+            raise ValueError("Missing 'api_keys' section in configuration")
+            
+        # Validate required API keys
+        validate_api_key(config["api_keys"].get("openrouter"), "OpenRouter")
+        validate_api_key(config["api_keys"].get("elevenlabs"), "ElevenLabs")
+    except ValueError as e:
+        logger.error(f"API validation failed: {str(e)}")
+        print(f"\n❌ Configuration Error: {str(e)}")
+        print("    Please check your config file and .env settings")
+        sys.exit(1)
+        
     logger.info(f"Starting podcast generation for subject: {args.subject}")
     logger.info(f"Output directory: {output_dir}")
     

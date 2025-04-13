@@ -227,6 +227,33 @@ class PodcastAssembler:
         """
         logger.info("Using ffmpeg directly to concatenate audio files (fallback mode)")
         
+        # First verify that all files exist
+        missing_files = []
+        for file_info in audio_files:
+            file_path = file_info["path"]
+            if not os.path.exists(file_path):
+                missing_files.append(file_path)
+        
+        if missing_files:
+            logger.error(f"Missing {len(missing_files)} audio files: {missing_files[:3]}...")
+            raise FileNotFoundError(f"Missing {len(missing_files)} audio files. First few: {missing_files[:3]}")
+        
+        # Option 1: Try concat demuxer first (faster but requires compatible formats)
+        try:
+            self._concat_with_concat_demuxer(audio_files, output_file)
+            return
+        except Exception as e:
+            logger.warning(f"Concat demuxer failed: {str(e)}. Trying filter_complex method...")
+        
+        # Option 2: Try filter_complex method (more compatible but slower)
+        try:
+            self._concat_with_filter_complex(audio_files, output_file)
+        except Exception as e:
+            logger.error(f"All ffmpeg concatenation methods failed: {str(e)}")
+            raise
+    
+    def _concat_with_concat_demuxer(self, audio_files, output_file):
+        """Concatenate using ffmpeg concat demuxer"""
         # Create a temporary file list for ffmpeg
         with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as f:
             file_list_path = f.name
@@ -240,12 +267,59 @@ class PodcastAssembler:
                 'ffmpeg', '-y', '-f', 'concat', '-safe', '0', 
                 '-i', file_list_path, '-c', 'copy', str(output_file)
             ]
-            subprocess.run(cmd, check=True, capture_output=True)
-            logger.info(f"Successfully concatenated {len(audio_files)} audio files")
+            
+            # Run with detailed output to diagnose issues
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.warning(f"ffmpeg concat demuxer returned code {result.returncode}")
+                logger.debug(f"ffmpeg stderr: {result.stderr}")
+                raise subprocess.CalledProcessError(result.returncode, cmd, 
+                                                  output=result.stdout, stderr=result.stderr)
+                
+            logger.info(f"Successfully concatenated {len(audio_files)} audio files with concat demuxer")
+            
         finally:
             # Clean up the temporary file
             if os.path.exists(file_list_path):
                 os.remove(file_list_path)
+    
+    def _concat_with_filter_complex(self, audio_files, output_file):
+        """Concatenate using ffmpeg filter_complex (more compatible)"""
+        # Build the filter_complex command
+        inputs = []
+        for file_info in audio_files:
+            file_path = file_info["path"]
+            inputs.extend(['-i', file_path])
+        
+        # Create the filter_complex string
+        filter_parts = []
+        for i in range(len(audio_files)):
+            filter_parts.append(f"[{i}:0]")
+        
+        filter_complex = ''.join(filter_parts) + f"concat=n={len(audio_files)}:v=0:a=1[out]"
+        
+        # Assemble the full command
+        cmd = [
+            'ffmpeg', '-y',
+            *inputs,
+            '-filter_complex', filter_complex,
+            '-map', '[out]',
+            '-ar', str(self.sample_rate),
+            '-b:a', self.bitrate,
+            str(output_file)
+        ]
+        
+        # Run with detailed output
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"ffmpeg filter_complex failed with code {result.returncode}")
+            logger.debug(f"ffmpeg stderr: {result.stderr}")
+            raise subprocess.CalledProcessError(result.returncode, cmd, 
+                                              output=result.stdout, stderr=result.stderr)
+            
+        logger.info(f"Successfully concatenated {len(audio_files)} audio files with filter_complex")
 
 
 def assemble_podcast(audio_files, output_file, config):
