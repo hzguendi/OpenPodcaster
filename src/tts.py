@@ -154,6 +154,10 @@ class TTSGenerator:
             line = line.strip()
             if not line:
                 continue
+            
+            # Skip timestamp and section headers
+            if line.startswith('[TIMESTAMP]') or line.startswith('[00:') or line == '---':
+                continue
                 
             # Check if this line starts a new speaker section
             if line.startswith(f"{host_name}:"):
@@ -182,15 +186,7 @@ class TTSGenerator:
                 # Start new segment
                 current_speaker = beginner_name
                 current_text = [line[len(beginner_name) + 1:].strip()]
-                
-            # Check if this is a pause marker
-            elif line.startswith("[pause:") and current_speaker and current_text:
-                # Extract pause duration and add it to the text
-                pause_match = re.search(r'\[pause:([\d\.]+)\]', line)
-                if pause_match:
-                    # Just append the pause marker to the current text
-                    current_text.append(line)
-                
+            
             elif current_speaker and current_text:
                 # Continue current segment
                 current_text.append(line)
@@ -246,7 +242,15 @@ class TTSGenerator:
             ":": 0.3,   # Colon
         }
         
-        # Check for explicit pause marker
+        # Check for explicit pause marker in new format
+        pause_match = re.search(r'<<PAUSE:([\d\.]+)>>', text)
+        if pause_match:
+            try:
+                return float(pause_match.group(1))
+            except (ValueError, IndexError):
+                pass
+            
+        # Check for old format (fallback)
         pause_match = re.search(r'\[pause:([\d\.]+)\]', text)
         if pause_match:
             try:
@@ -273,8 +277,8 @@ class TTSGenerator:
         """
         logger.debug(f"Generating speech with ElevenLabs for {speaker_type.value}")
         
-        # Remove pause markers from text
-        clean_text = re.sub(r'\[pause:[\d\.]+\]', '', text).strip()
+        # Remove markup tags
+        clean_text = self._clean_markup_for_elevenlabs(text)
         
         # Get speaker-specific settings
         voice_id = self.voice_settings[speaker_type.value].get("voice_id")
@@ -358,9 +362,23 @@ class TTSGenerator:
                 latency=latency
             )
     
+    def _clean_markup_for_elevenlabs(self, text):
+        """Clean special markup tags for ElevenLabs"""
+        # Replace pause markers
+        text = re.sub(r'<<PAUSE:[\d\.]+>>', '', text)
+        text = re.sub(r'\[pause:[\d\.]+\]', '', text)
+        
+        # Replace emphasis tags
+        text = re.sub(r'<<EMPHASIS>>(.*?)<<EMPHASIS_END>>', r'*\1*', text)
+        
+        # Replace tone tags
+        text = re.sub(r'<<TONE:\w+>>(.*?)<<TONE_END>>', r'\1', text)
+        
+        return text.strip()
+    
     def _generate_coqui(self, text, output_file, speaker_type):
         """
-        Generate speech using Coqui TTS
+        Generate speech using Coqui TTS with enhanced natural speech capabilities
         
         Args:
             text (str): Text to convert to speech
@@ -369,34 +387,80 @@ class TTSGenerator:
         """
         logger.debug(f"Generating speech with Coqui TTS for {speaker_type.value}")
         
-        # Remove pause markers from text
-        clean_text = re.sub(r'\[pause:[\d\.]+\]', '', text).strip()
-        
-        # Get speaker-specific settings
-        voice_settings = self.voice_settings[speaker_type.value]
+        # Process text with custom markup for Coqui
+        processed_text = self._process_coqui_markup(text, speaker_type)
         
         try:
             from TTS.api import TTS
             
-            # Initialize Coqui TTS
-            model_name = voice_settings.get("model", "tts_models/en/ljspeech/tacotron2-DDC")
-            vocoder_name = voice_settings.get("vocoder", "vocoder_models/en/ljspeech/hifigan_v2")
+            # Get Coqui-specific configuration
+            coqui_config = self.config["tts"].get("coqui_config", {})
+            suppress_output = coqui_config.get("suppress_cli_output", True)
+            use_gpu_setting = coqui_config.get("use_gpu", "auto")
+            show_progress = coqui_config.get("progress_bar", False)
             
-            tts = TTS(model_name=model_name,
-                     progress_bar=False,
-                     gpu=False)
+            # Determine GPU usage
+            if use_gpu_setting == "auto":
+                import torch
+                use_gpu = torch.cuda.is_available()
+            else:
+                use_gpu = use_gpu_setting == True
             
-            # Generate speech
-            # Only pass language if using a multilingual model
-            tts_args = {
-                "text": clean_text,
-                "file_path": str(output_file),
-                "speaker": voice_settings.get("speaker")
-            }
-            if "vctk" in model_name or "your_tts" in model_name:  # Common multilingual models
-                tts_args["language"] = voice_settings.get("language", "en")
+            # Get speaker-specific settings
+            voice_settings = self.voice_settings[speaker_type.value]
+            model_name = voice_settings.get("model", "tts_models/en/vctk/vits")
             
-            tts.tts_to_file(**tts_args)
+            # Suppress TTS output if specified
+            import sys
+            original_stdout = sys.stdout
+            null_device = open(os.devnull, 'w')
+            
+            try:
+                # Redirect stdout to null device if suppressing output
+                if suppress_output:
+                    sys.stdout = null_device
+                
+                # Initialize TTS with appropriate settings
+                tts = TTS(model_name=model_name,
+                         progress_bar=show_progress,
+                         gpu=use_gpu)
+                
+                # Prepare TTS arguments based on model type and available features
+                tts_args = {
+                    "text": processed_text,
+                    "file_path": str(output_file),
+                }
+                
+                # Add speaker if it's a multi-speaker model and the model supports it
+                if voice_settings.get("speaker") and ("/vctk/" in model_name or "multi_speaker" in model_name):
+                    tts_args["speaker"] = voice_settings.get("speaker")
+                
+                # Add language only for explicitly multilingual models
+                if voice_settings.get("language") and any(x in model_name.lower() for x in ["multilingual", "xtts", "your_tts"]):
+                    tts_args["language"] = voice_settings.get("language")
+                    
+                # Add speed/rate adjustment if supported by the model
+                if voice_settings.get("speed") and hasattr(tts, "synthesizer") and hasattr(tts.synthesizer, "rate"):
+                    tts.synthesizer.rate = voice_settings.get("speed")
+                    
+                # Some models support emotion and style parameters
+                if "xtts" in model_name or "vits" in model_name:
+                    # If emotion strength is specified and the model supports it
+                    if voice_settings.get("emotion_strength") and hasattr(tts, "synthesizer") and hasattr(tts.synthesizer, "emotion_strength"):
+                        tts.synthesizer.emotion_strength = voice_settings.get("emotion_strength")
+                    
+                    # If style is specified and the model supports it
+                    if voice_settings.get("style") and hasattr(tts, "synthesizer") and hasattr(tts.synthesizer, "style"):
+                        tts_args["style"] = voice_settings.get("style")
+                
+                # Generate the speech with suppressed output
+                tts.tts_to_file(**tts_args)
+                
+            finally:
+                # Restore stdout
+                if suppress_output:
+                    sys.stdout = original_stdout
+                    null_device.close()
             
             logger.debug(f"Saved audio to {output_file}")
             self._record_coqui_stats(success=True)
@@ -405,6 +469,42 @@ class TTSGenerator:
             self._record_coqui_stats(success=False)
             logger.error(f"Error generating speech with Coqui TTS: {str(e)}")
             raise
+    
+    def _process_coqui_markup(self, text, speaker_type):
+        """
+        Process Coqui-specific markup to clean the text for TTS
+        
+        Args:
+            text (str): Original text with markup
+            speaker_type (Speaker): Type of speaker
+            
+        Returns:
+            str: Processed text ready for Coqui TTS
+        """
+        # Get speaker-specific characteristics
+        voice_settings = self.voice_settings[speaker_type.value]
+        
+        # Clean text of all markup tags first
+        processed_text = text
+        
+        # Remove timestamp and section headers that might have been missed
+        processed_text = re.sub(r'\[TIMESTAMP\].*?(?=\n|$)', '', processed_text)
+        processed_text = re.sub(r'\[\d{2}:\d{2}:\d{2}\].*?(?=\n|$)', '', processed_text)
+        
+        # Replace pause markers with actual silences (remove them for now)
+        processed_text = re.sub(r'<<PAUSE:[\d\.]+>>', '', processed_text)
+        processed_text = re.sub(r'\[pause:[\d\.]+\]', '', processed_text)
+        
+        # Replace emphasis tags (remove the tags but keep the content)
+        processed_text = re.sub(r'<<EMPHASIS>>(.*?)<<EMPHASIS_END>>', r'\1', processed_text)
+        
+        # Replace tone tags (remove the tags but keep the content)
+        processed_text = re.sub(r'<<TONE:\w+>>(.*?)<<TONE_END>>', r'\1', processed_text)
+        
+        # Clean up multiple spaces
+        processed_text = re.sub(r' +', ' ', processed_text)
+        
+        return processed_text.strip()
             
     def _record_coqui_stats(self, success=True):
         """Record statistics for Coqui TTS usage"""
@@ -430,8 +530,8 @@ class TTSGenerator:
         """
         logger.debug(f"Generating speech with Gemini for {speaker_type.value}")
         
-        # Remove pause markers from text
-        clean_text = re.sub(r'\[pause:[\d\.]+\]', '', text).strip()
+        # Remove markup tags
+        clean_text = self._clean_markup_for_gemini(text)
         
         # Get speaker-specific settings
         voice_name = self.voice_settings[speaker_type.value].get("voice_name")
@@ -538,6 +638,11 @@ class TTSGenerator:
                 tokens_out=audio_size,
                 latency=latency
             )
+            
+    def _clean_markup_for_gemini(self, text):
+        """Clean special markup tags for Gemini"""
+        # Same as for ElevenLabs
+        return self._clean_markup_for_elevenlabs(text)
 
 
 def generate_speech(transcript, output_dir, config):

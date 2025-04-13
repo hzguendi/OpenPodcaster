@@ -3,7 +3,7 @@
 
 # Logging Configuration
 logging:
-  level: DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   console_output: true
   file_output: true
 
@@ -39,6 +39,21 @@ tts:
   # For ElevenLabs eleven_multilingual_v2
   model_id: eleven_multilingual_v2
   
+  # Coqui specific settings
+  coqui_config:
+    suppress_cli_output: true  # Suppress the Coqui TTS console output
+    use_gpu: auto              # Can be auto, true, or false
+    progress_bar: true        # Show/hide progress bars
+  
+  # Global settings for more natural speech
+  natural_speech:
+    enable_breathing: true   # Add natural breathing pauses
+    enable_fillers: true     # Allow um, uh, etc. in natural positions
+    sentence_pause: 0.6      # Pause between sentences
+    paragraph_pause: 0.9     # Pause between paragraphs
+    emphasis_level: 0.7      # How much to emphasize words
+    randomize_pauses: true   # Random natural variation in pause duration
+  
   # Host voice settings
   host:
     # ElevenLabs settings
@@ -53,10 +68,17 @@ tts:
     speaking_rate: 1.0  # 0.25-4.0: 1.0 is normal speed
     pitch: 0.0  # -20.0-20.0: 0.0 is normal pitch
 
-    # Coqui settings (vocoder auto-selected)
-    model: tts_models/en/ljspeech/tacotron2-DDC
-    speaker: # Optional speaker ID if using multi-speaker model
-    # language: en  # Only needed for multilingual models
+    # Coqui settings
+    model: tts_models/en/vctk/vits
+    speaker: p273  # Male British accent
+    speed: 1.05  # Slightly faster than normal
+    style: default  # Speaking style
+    emotion_strength: 0.65  # How strongly to express emotion 
+    
+    # Speaker characteristics
+    use_sentence_breaks: true  # Natural breaks at sentence ends
+    break_duration_scale: 1.1  # Slightly longer breaks between sentences
+    word_emphasis: 0.4  # Level of word emphasis (0.0-1.0)  
   
   # Expert voice settings
   expert:
@@ -72,10 +94,17 @@ tts:
     speaking_rate: 0.95
     pitch: -1.0
 
-    # Coqui settings (vocoder auto-selected)
-    model: tts_models/en/ljspeech/tacotron2-DDC
-    speaker: # Optional speaker ID if using multi-speaker model
-    language: en
+    # Coqui settings
+    model: tts_models/en/vctk/vits
+    speaker: p231  # Female voice with clear pronunciation
+    speed: 0.93  # Slightly slower, authoritative pace
+    style: confident  # Confident speaking style
+    emotion_strength: 0.8  # Strong emphasis on important points
+    
+    # Speaker characteristics
+    use_sentence_breaks: true  # Natural breaks at sentence ends
+    break_duration_scale: 1.15  # Slightly longer pauses, more considered speech
+    word_emphasis: 0.7  # Stronger word emphasis for expert explanations
   
   # Beginner voice settings
   beginner:
@@ -91,10 +120,17 @@ tts:
     speaking_rate: 1.05
     pitch: 2.0
 
-    # Coqui settings (vocoder auto-selected)
-    model: tts_models/en/ljspeech/tacotron2-DDC
-    speaker: # Optional speaker ID if using multi-speaker model
-    language: en
+    # Coqui settings
+    model: tts_models/en/vctk/vits
+    speaker: p262  # Younger-sounding voice
+    speed: 1.08  # Slightly faster, more enthusiastic
+    style: curious  # Curious speaking style
+    emotion_strength: 0.85  # More expressive for questions
+    
+    # Speaker characteristics
+    use_sentence_breaks: true  # Natural breaks at sentence ends
+    break_duration_scale: 0.9  # Slightly shorter breaks, more eager
+    word_emphasis: 0.55  # Moderate word emphasis with question inflection
 
 # Audio Assembler
 assembler:

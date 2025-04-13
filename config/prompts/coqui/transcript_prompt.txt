@@ -5,31 +5,27 @@ The podcast should feel like a natural conversation while being informative and 
 RESEARCH CONTENT:
 {research}
 
-TRANSCRIPT FORMAT:
+TRANSCRIPT FORMAT FOR COQUI TTS:
 STRICT RULES:
 0. STRICTLY adhere to {max_tokens} token limit and {char_limit} character limit (from config.yml)
-1. Speaker tags MUST use exact format without markdown:
-   - "{host_name}: " (no bold/formatting)
-   - "{expert_name}: " 
-   - "{beginner_name}: "
-2. Separate sections with --- on new line
-3. Add timestamps in [HH:MM:SS] format at section starts
-4. Put one blank line between speakers
-5. For pauses/transitions use [pause:Xs] where X is seconds
+1. Speaker tags MUST use exact format:
+   - <host>Speaker text goes here.</host>
+   - <expert>Speaker text goes here.</expert>
+   - <beginner>Speaker text goes here.</beginner>
+2. Each speaker segment should be on its own line with NO blank lines between speakers
+3. DO NOT include timestamps like [00:00:00]
+4. DO NOT include section headers like "INTRODUCTION" or "---"
+5. For pauses or emphasis use these special tags:
+   - <pause sec="0.5" /> - for pauses (0.5 seconds in this example)
+   - <emphasis>important words</emphasis> - for emphasis
+   - <break strength="medium" /> - for breathing pauses (can be "weak", "medium", or "strong")
+6. DO NOT use [pause:Xs] format - ALWAYS use <pause sec="X" /> instead
 
-EXAMPLE STRUCTURE:
-
-[00:00:00] INTRODUCTION
-{host_name}: Welcome...
-{expert_name}: Thank you...
-
----
-
-[00:02:30] BACKGROUND
-{host_name}: Let's start with...
-{expert_name}: The key concept is...
-
-NO MARKDOWN ALLOWED. Never use **bold**, headers (# ##), or any formatting.
+EXAMPLE FORMAT:
+<host>Welcome to our podcast on quantum computing! Today we're going to explore this fascinating topic with our guests.</host>
+<expert>Thank you for having me. Quantum computing is <emphasis>revolutionary</emphasis> for computational science.</expert>
+<beginner>I'm excited to learn! <pause sec="0.3" /> What exactly makes quantum computing different from regular computers?</beginner>
+<host>That's a great question. <break strength="medium" /> Let's start with the basics.</host>
 
 PODCAST STRUCTURE:
 1. INTRODUCTION (1-2 minutes)
@@ -69,18 +65,14 @@ IMPORTANT GUIDELINES:
 4. Ensure the beginner asks questions the audience might have
 5. Keep the tone friendly, curious, and engaging
 6. STRICTLY respect {max_tokens} token limit and {char_limit} character limit (hard limits from config.yml)
-7. If limits are exceeded, the system will truncate the response
-8. Make sure each speaker has a distinct voice and perspective
-9. Include some brief moments of casual banter to make it feel authentic
+7. Make sure each speaker has a distinct voice and perspective
+8. Include some brief moments of casual banter to make it feel authentic
 
 NATURAL SPEECH PATTERNS (VERY IMPORTANT):
 1. Include natural speech patterns like:
    - Filler words (um, ah, well, you know, like) sparingly
-   - Brief pauses indicated with [pause:1.2s] format (fractions of seconds)
-   - Interruptions and overlaps ("Oh, I see-" "Actually, that's a misconception...") 
    - False starts ("I think the- wait, let me rephrase that")
-   - Verbal emphasis ("This is *really* important")
-   - Repetition as people naturally speak ("This concept, this specific concept is key")
+   - Interruptions when appropriate, using <host>, <expert>, or <beginner> tags for each speaker
 
 2. Give each speaker unique verbal habits:
    - HOST: Professional transitions, summarizes well, asks clarifying questions
@@ -98,10 +90,10 @@ NATURAL SPEECH PATTERNS (VERY IMPORTANT):
    - Ask for clarification ("When you say X, do you mean...?")
    - Express agreement/disagreement naturally
 
-5. Use natural timing indications:
-   - Add [pause:0.5s] after important points to let them sink in
-   - Use [pause:1.0s] for transitions between major topics
-   - Add [pause:0.3s] for brief hesitations when a speaker is thinking
+5. Use natural timing indications with the pause tag:
+   - <pause sec="0.5" /> after important points to let them sink in
+   - <pause sec="1.0" /> for transitions between major topics
+   - <pause sec="0.3" /> for brief hesitations when a speaker is thinking
 
 Your transcript must strictly respect the configured limits while capturing the feeling of a real conversation between these three people and effectively teaching about the subject. The system will automatically truncate any content exceeding {max_tokens} tokens or {char_limit} characters.
 

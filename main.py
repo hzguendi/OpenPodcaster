@@ -30,6 +30,10 @@ from src.tts import generate_speech
 from src.assembler import assemble_podcast
 from src.utils.api_stats import validate_api_key
 
+# Import Coqui-specific modules
+from src.coqui.transcript import generate_coqui_transcript
+from src.coqui.tts import generate_coqui_speech
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -62,14 +66,32 @@ def main():
     output_dir = Path(f"data/{timestamp}")
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Load configuration
-    config = load_config()
-    
-    # Setup logging
+    # Setup basic logging first so we can log config errors
     log_file = output_dir / "processing.log"
-    setup_logging(config["logging"]["level"], log_file)
+    setup_logging("INFO", log_file)
     
     logger = logging.getLogger(__name__)
+    
+    # Load configuration
+    try:
+        config = load_config()
+        
+        # Ensure prompt_paths exists in config
+        if "prompt_paths" not in config:
+            config["prompt_paths"] = {}
+            # Look for common prompt locations
+            if os.path.exists("config/prompts/research_prompt.txt"):
+                config["prompt_paths"]["research"] = "config/prompts/research_prompt.txt"
+            if os.path.exists("config/prompts/transcript_prompt.txt"):
+                config["prompt_paths"]["transcript"] = "config/prompts/transcript_prompt.txt"
+            
+            logger.warning("prompt_paths not found in config, using defaults")
+        
+        # Update logging level based on config
+        setup_logging(config["logging"]["level"], log_file)
+    except Exception as e:
+        print(f"Error loading configuration: {str(e)}")
+        sys.exit(1)
 
     # Validate API keys
     try:
@@ -98,11 +120,28 @@ def main():
         # Step 2: Generate transcript
         logger.info("Step 2: Generating the transcript")
         transcript_file = output_dir / "transcript.txt"
-        transcript = generate_transcript(research_file, transcript_file, config)
+        
+        # Check if we're using Coqui TTS
+        using_coqui = config["tts"]["provider"].lower() == "coqui"
+        
+        if using_coqui:
+            # Use Coqui-specific transcript generation
+            logger.info("Using Coqui-specific transcript generation")
+            transcript = generate_coqui_transcript(args.subject, research_file, output_dir, config)
+        else:
+            # Use standard transcript generation
+            transcript = generate_transcript(research_file, transcript_file, config)
         
         # Step 3: Generate speech
         logger.info("Step 3: Generating speech")
-        audio_files = generate_speech(transcript, output_dir, config)
+        
+        if using_coqui:
+            # Use Coqui-specific speech generation
+            logger.info("Using Coqui-specific speech generation")
+            audio_files = generate_coqui_speech(transcript, output_dir, config)
+        else:
+            # Use standard speech generation
+            audio_files = generate_speech(transcript, output_dir, config)
         
         # Step 4: Assemble podcast
         logger.info("Step 4: Assembling the podcast")
