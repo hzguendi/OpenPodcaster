@@ -85,6 +85,8 @@ The `config/conf.yml` file contains all configurables:
 - **Transcript settings**: Character limits, speaker names
 - **TTS settings**: Voice IDs, speaking rates, stability
 - **Audio settings**: Sample rate, bitrate, normalization
+- **API timeouts**: Custom timeout values for each provider
+- **API endpoints**: URLs for various provider APIs
 
 ### Prompt Templates
 
@@ -150,6 +152,21 @@ research:
   model: anthropic/claude-3-opus-20240229  # Change to a different model
 ```
 
+### Configuring API Timeouts
+
+Adjust the timeout values in the `api_timeouts` section of `conf.yml` to handle large requests or slower responses from API providers:
+
+```yaml
+api_timeouts:
+  ollama_research: 300   # 5 minutes for research generation with Ollama
+  ollama_transcript: 600  # 10 minutes for transcript generation with Ollama
+  openrouter: 180        # 3 minutes for OpenRouter requests
+  deepseek: 180          # 3 minutes for DeepSeek requests
+  elevenlabs: 60         # 1 minute for ElevenLabs TTS requests
+```
+
+For local Ollama models, especially larger ones, you may need to increase timeouts significantly to allow for loading the model and generating lengthy content.
+
 ## 📁 Project Structure
 
 ```
@@ -186,6 +203,10 @@ podcast_gen/
 - Verify FFmpeg is installed correctly
 - Check file permissions
 - Ensure output directories are writable
+
+### API Timeout Issues
+- If experiencing timeout errors with Ollama or other providers, adjust the timeout values in the `api_timeouts` section of `conf.yml`
+- For large models or complex requests, consider increasing timeouts significantly
 
 ### Memory Issues
 - Reduce character limits in `conf.yml`

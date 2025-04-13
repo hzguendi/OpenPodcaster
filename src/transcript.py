@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 
-from src.utils.api_stats import handle_api_error
+from src.utils.api_stats import handle_api_error, APIStatsTracker
 
 from src.utils.file_utils import read_text_file, save_text_file, get_prompt_content
 from src.utils.progress import ProgressBar
@@ -36,7 +36,7 @@ class TranscriptGenerator:
         self.model = config["transcript"]["model"]
         self.api_key = config["api_keys"].get(self.provider)
         
-        if not self.api_key:
+        if not self.api_key and self.provider != "ollama":
             raise ValueError(f"API key for {self.provider} not found in configuration")
         
         # Get the prompt template
@@ -44,6 +44,9 @@ class TranscriptGenerator:
         
         # Character limit for transcript
         self.char_limit = config["transcript"].get("character_limit", 10000)
+        
+        # Initialize API stats tracker
+        self.api_stats = APIStatsTracker(config)
         
         logger.debug(f"Initialized transcript generator with provider: {self.provider}, model: {self.model}")
     
@@ -122,7 +125,11 @@ class TranscriptGenerator:
         tokens_out = 0
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=120)
+            # Get timeout from config or use default 10 minutes (600 seconds)
+            timeout = self.config.get("api_timeouts", {}).get("ollama_transcript", 600)
+            logger.debug(f"Using timeout of {timeout} seconds for Ollama transcript request")
+            
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
             response.raise_for_status()
             
             response_data = response.json()
@@ -198,7 +205,11 @@ class TranscriptGenerator:
         tokens_out = 0
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=180)
+            # Get timeout from config or use default 3 minutes (180 seconds)
+            timeout = self.config.get("api_timeouts", {}).get("openrouter", 180) 
+            logger.debug(f"Using timeout of {timeout} seconds for OpenRouter transcript request")
+            
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
             response.raise_for_status()
             
             response_data = response.json()
@@ -284,7 +295,11 @@ class TranscriptGenerator:
         tokens_out = 0
         
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=180)
+            # Get timeout from config or use default 3 minutes (180 seconds)
+            timeout = self.config.get("api_timeouts", {}).get("deepseek", 180)
+            logger.debug(f"Using timeout of {timeout} seconds for DeepSeek transcript request")
+            
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
             response.raise_for_status()
             
             response_data = response.json()

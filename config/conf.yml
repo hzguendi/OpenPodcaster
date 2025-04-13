@@ -9,16 +9,18 @@ logging:
 
 # Research Generation
 research:
-  provider: openrouter  # ollama, openrouter, deepseek
-  model: google/gemini-2.0-flash-thinking-exp:free  # For openrouter, use the full model path
+  provider: ollama  # ollama, openrouter, deepseek
+  # openrouter google/gemini-2.0-flash-thinking-exp:free
+  # ollama gemma3:1b
+  model: gemma3:1b # For openrouter, use the full model path
   temperature: 0.7
   max_tokens: 4000
   character_limit: 8000  # Limits the size of the research output
 
 # Transcript Generation
 transcript:
-  provider: openrouter  # ollama, openrouter, deepseek
-  model: google/gemini-2.0-flash-thinking-exp:free  # For openrouter, use the full model path
+  provider: ollama  # ollama, openrouter, deepseek
+  model: gemma3:1b  # For openrouter, use the full model path
   temperature: 0.8
   max_tokens: 8000
   character_limit: 10000  # Limits the size of the transcript output
@@ -105,6 +107,14 @@ api_urls:
   elevenlabs: https://api.elevenlabs.io/v1/text-to-speech
   gemini: https://texttospeech.googleapis.com/v1/text:synthesize
   referer: http://localhost
+
+# API Timeout Settings (in seconds)
+api_timeouts:
+  ollama_research: 300  # 5 minutes for research generation
+  ollama_transcript: 600  # 10 minutes for transcript generation
+  openrouter: 180  # 3 minutes for OpenRouter calls
+  deepseek: 180  # 3 minutes for DeepSeek calls
+  elevenlabs: 60  # 1 minute for ElevenLabs calls
 
 # API Statistics Tracking
 api_stats:
