@@ -10,6 +10,10 @@ A powerful, configurable tool for automatically generating educational podcasts 
   2. Transcript creation
   3. Text-to-speech conversion
   4. Final podcast assembly
+- **Token Streaming Support**:
+  - Real-time display of generated tokens in progress bars
+  - Visual feedback during AI generation processes
+  - Configurable for research and transcript generation
 - **Multiple AI Provider Support**:
   - Research/Transcript: Ollama, OpenRouter, DeepSeek
   - TTS: ElevenLabs, Gemini
@@ -141,6 +145,20 @@ assembler:
   intro_music: "/path/to/intro_music.mp3"
   outro_music: "/path/to/outro_music.mp3"
 ```
+
+### Enabling Token Streaming
+
+Enable token streaming in the progress bars for real-time feedback during generation:
+
+```yaml
+research:
+  stream_tokens: true  # Show incoming tokens in progress bar during research
+
+transcript:
+  stream_tokens: true  # Show incoming tokens in progress bar during transcript generation
+```
+
+When enabled, you'll see each token as it's generated and the progress bar will show completion against the maximum expected tokens.
 
 ### Changing Models
 

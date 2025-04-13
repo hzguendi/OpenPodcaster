@@ -16,6 +16,7 @@ research:
   temperature: 0.7
   max_tokens: 4000
   character_limit: 8000  # Limits the size of the research output
+  stream_tokens: true  # Enable token streaming in progress bar
 
 # Transcript Generation
 transcript:
@@ -24,6 +25,7 @@ transcript:
   temperature: 0.8
   max_tokens: 8000
   character_limit: 10000  # Limits the size of the transcript output
+  stream_tokens: true  # Enable token streaming in progress bar
   
   # Speaker names that will appear in the transcript
   host_name: HOST

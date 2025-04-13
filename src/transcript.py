@@ -9,6 +9,7 @@ import logging
 import json
 import requests
 import time
+import inspect
 from pathlib import Path
 
 
@@ -72,7 +73,16 @@ class TranscriptGenerator:
         )
         
         # Create progress bar
-        progress = ProgressBar(total=1, desc="Generating transcript", unit="step")
+        stream_tokens = self.config["transcript"].get("stream_tokens", False)
+        max_tokens = self.config["transcript"].get("max_tokens", 8000)
+        
+        progress = ProgressBar(
+            total=1 if not stream_tokens else max_tokens, 
+            desc="Generating transcript", 
+            unit="step" if not stream_tokens else "tokens",
+            stream_tokens=stream_tokens, 
+            max_tokens=max_tokens
+        )
         
         try:
             # Generate transcript based on the provider
@@ -85,7 +95,9 @@ class TranscriptGenerator:
             else:
                 raise ValueError(f"Unsupported provider: {self.provider}")
             
-            progress.update(1, "Transcript generation completed")
+            # Only update if not in streaming mode (streaming updates during processing)
+            if not self.config["transcript"].get("stream_tokens", False):
+                progress.update(1, "Transcript generation completed")
             
             # Validate transcript format
             transcript = self._validate_transcript(transcript)
@@ -103,14 +115,17 @@ class TranscriptGenerator:
         logger.debug("Generating transcript with Ollama")
         
         url = self.config.get("api_urls", {}).get("ollama", "http://localhost:11434/api/generate")
+        stream_tokens = self.config["transcript"].get("stream_tokens", False)
+        max_tokens = self.config["transcript"].get("max_tokens", 8000)
         
+        # Configure streaming based on config setting
         payload = {
             "model": self.model,
             "prompt": prompt,
-            "stream": False,
+            "stream": stream_tokens,  # Enable streaming if configured
             "options": {
                 "temperature": self.config["transcript"].get("temperature", 0.7),
-                "max_tokens": self.config["transcript"].get("max_tokens", 8000)
+                "max_tokens": max_tokens
             }
         }
         
@@ -129,15 +144,23 @@ class TranscriptGenerator:
             timeout = self.config.get("api_timeouts", {}).get("ollama_transcript", 600)
             logger.debug(f"Using timeout of {timeout} seconds for Ollama transcript request")
             
-            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            
-            response_data = response.json()
-            content = response_data["response"]
-            tokens_out = len(content.split())
-            success = True
-            
-            return content
+            if stream_tokens:
+                # Handle streaming responses
+                content = self._handle_streaming(url, payload, headers, timeout, provider="ollama")
+                tokens_out = len(content.split())
+                success = True
+                return content
+            else:
+                # Handle non-streaming responses (original implementation)
+                response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+                response.raise_for_status()
+                
+                response_data = response.json()
+                content = response_data["response"]
+                tokens_out = len(content.split())
+                success = True
+                
+                return content
             
         except requests.exceptions.Timeout:
             error_type = "timeout"
@@ -177,19 +200,144 @@ class TranscriptGenerator:
                 latency=latency
             )
     
+    def _handle_streaming(self, url, payload, headers, timeout, provider="ollama"):
+        """Handle streaming responses from any provider API
+        
+        Args:
+            url (str): API endpoint URL
+            payload (dict): Request payload
+            headers (dict): Request headers
+            timeout (int): Request timeout in seconds
+            provider (str): Provider name (ollama, openrouter, deepseek)
+            
+        Returns:
+            str: Accumulated response text from streaming
+        """
+        logger.debug(f"Handling streaming response from {provider.capitalize()}")
+        
+        # Get progress bar instance
+        progress = None
+        for frame_info in inspect.stack():
+            frame = frame_info.frame
+            if 'progress' in frame.f_locals and isinstance(frame.f_locals['progress'], ProgressBar):
+                progress = frame.f_locals['progress']
+                break
+        
+        if not progress:
+            logger.warning("Could not find progress bar for streaming updates")
+            # Create a dummy progress bar that does nothing
+            progress = type('DummyProgress', (), {'update_token': lambda self, token: None, 'update': lambda self, n, desc=None, token=None: None})()
+        
+        # Initialize response
+        response_text = ""
+        token_count = 0
+        max_tokens = self.config["transcript"].get("max_tokens", 8000)
+        last_update_time = time.time()
+        
+        try:
+            with requests.post(url, json=payload, headers=headers, timeout=timeout, stream=True) as response:
+                response.raise_for_status()
+                
+                # Process the stream line by line
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                        
+                    try:
+                        # Process based on provider's format
+                        if provider == "ollama":
+                            # Ollama format: direct JSON objects
+                            data = json.loads(line.decode('utf-8'))
+                            
+                            # Extract token
+                            if 'response' in data:
+                                token = data['response']
+                                response_text += token
+                                token_count += 1
+                                
+                                # Update progress bar
+                                self._update_stream_progress(progress, token, token_count, last_update_time)
+                                last_update_time = time.time()
+                            
+                            # Check for end of stream
+                            if data.get('done', False):
+                                break
+                        else:
+                            # OpenRouter/DeepSeek format (OpenAI SSE format)
+                            line_str = line.decode('utf-8').strip()
+                            
+                            # SSE format: lines start with "data: "
+                            if line_str.startswith('data: '):
+                                # Remove "data: " prefix
+                                json_str = line_str[6:]
+                                
+                                # Check for end marker
+                                if json_str == "[DONE]":
+                                    break
+                                    
+                                # Parse JSON payload    
+                                data = json.loads(json_str)
+                                
+                                # Extract token from choices/delta structure
+                                if 'choices' in data and data['choices'] and 'delta' in data['choices'][0]:
+                                    delta = data['choices'][0]['delta']
+                                    if 'content' in delta and delta['content']:
+                                        token = delta['content']
+                                        response_text += token
+                                        token_count += 1
+                                        
+                                        # Update progress bar
+                                        self._update_stream_progress(progress, token, token_count, last_update_time)
+                                        last_update_time = time.time()
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to decode JSON from {provider} stream: {e}")
+                        continue
+                    except Exception as e:
+                        logger.warning(f"Error processing {provider} stream line: {e}")
+                        continue
+            
+            # Final progress update
+            progress.update(max_tokens - token_count, desc="Transcript generation completed")
+            return response_text
+                
+        except Exception as e:
+            logger.error(f"Error processing streaming response from {provider}: {str(e)}")
+            raise
+    
+    def _update_stream_progress(self, progress, token, token_count, last_update_time):
+        """Helper method to update the progress bar for streaming tokens
+        
+        Args:
+            progress: Progress bar instance
+            token: Current token
+            token_count: Current token count
+            last_update_time: Last time progress was updated
+        """
+        # Update progress bar at a reasonable interval
+        current_time = time.time()
+        if current_time - last_update_time >= 0.1:  # Update every 0.1 seconds
+            progress.update(1, token=token)
+        else:
+            # Just update the token display without incrementing the counter
+            progress.update_token(token)
+    
     def _generate_openrouter(self, prompt):
         """Generate transcript using OpenRouter"""
         logger.debug("Generating transcript with OpenRouter")
         
         url = self.config.get("api_urls", {}).get("openrouter", "https://openrouter.ai/api/v1/chat/completions")
+        stream_tokens = self.config["transcript"].get("stream_tokens", False)
+        max_tokens = self.config["transcript"].get("max_tokens", 8000)
         
+        # Configure streaming based on config setting
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "user", "content": prompt}
             ],
             "temperature": self.config["transcript"].get("temperature", 0.7),
-            "max_tokens": self.config["transcript"].get("max_tokens", 8000)
+            "max_tokens": max_tokens,
+            "stream": stream_tokens  # Enable streaming if configured
         }
         
         headers = {
@@ -209,26 +357,34 @@ class TranscriptGenerator:
             timeout = self.config.get("api_timeouts", {}).get("openrouter", 180) 
             logger.debug(f"Using timeout of {timeout} seconds for OpenRouter transcript request")
             
-            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            
-            response_data = response.json()
-            
-            # Check for expected response format
-            if "choices" not in response_data or not response_data["choices"]:
-                raise ValueError("Invalid response format from OpenRouter API: 'choices' not found")
-                
-            content = response_data["choices"][0]["message"]["content"]
-            
-            # Get token usage if available
-            if "usage" in response_data:
-                tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
-                tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
-            else:
+            if stream_tokens:
+                # Handle streaming responses
+                content = self._handle_streaming(url, payload, headers, timeout, provider="openrouter")
                 tokens_out = len(content.split())
+                success = True
+                return content
+            else:
+                # Handle non-streaming responses (original implementation)
+                response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+                response.raise_for_status()
                 
-            success = True
-            return content
+                response_data = response.json()
+                
+                # Check for expected response format
+                if "choices" not in response_data or not response_data["choices"]:
+                    raise ValueError("Invalid response format from OpenRouter API: 'choices' not found")
+                    
+                content = response_data["choices"][0]["message"]["content"]
+                
+                # Get token usage if available
+                if "usage" in response_data:
+                    tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
+                    tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
+                else:
+                    tokens_out = len(content.split())
+                    
+                success = True
+                return content
             
         except requests.exceptions.Timeout:
             error_type = "timeout"
@@ -273,14 +429,18 @@ class TranscriptGenerator:
         logger.debug("Generating transcript with DeepSeek")
         
         url = self.config.get("api_urls", {}).get("deepseek", "https://api.deepseek.com/v1/chat/completions")
+        stream_tokens = self.config["transcript"].get("stream_tokens", False)
+        max_tokens = self.config["transcript"].get("max_tokens", 8000)
         
+        # Configure streaming based on config setting
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "user", "content": prompt}
             ],
             "temperature": self.config["transcript"].get("temperature", 0.7),
-            "max_tokens": self.config["transcript"].get("max_tokens", 8000)
+            "max_tokens": max_tokens,
+            "stream": stream_tokens  # Enable streaming if configured
         }
         
         headers = {
@@ -299,26 +459,34 @@ class TranscriptGenerator:
             timeout = self.config.get("api_timeouts", {}).get("deepseek", 180)
             logger.debug(f"Using timeout of {timeout} seconds for DeepSeek transcript request")
             
-            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            
-            response_data = response.json()
-            
-            # Check for expected response format
-            if "choices" not in response_data or not response_data["choices"]:
-                raise ValueError("Invalid response format from DeepSeek API: 'choices' not found")
-                
-            content = response_data["choices"][0]["message"]["content"]
-            
-            # Get token usage if available
-            if "usage" in response_data:
-                tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
-                tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
-            else:
+            if stream_tokens:
+                # Handle streaming responses
+                content = self._handle_streaming(url, payload, headers, timeout, provider="deepseek")
                 tokens_out = len(content.split())
+                success = True
+                return content
+            else:
+                # Handle non-streaming responses (original implementation)
+                response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+                response.raise_for_status()
                 
-            success = True
-            return content
+                response_data = response.json()
+                
+                # Check for expected response format
+                if "choices" not in response_data or not response_data["choices"]:
+                    raise ValueError("Invalid response format from DeepSeek API: 'choices' not found")
+                    
+                content = response_data["choices"][0]["message"]["content"]
+                
+                # Get token usage if available
+                if "usage" in response_data:
+                    tokens_in = response_data["usage"].get("prompt_tokens", tokens_in)
+                    tokens_out = response_data["usage"].get("completion_tokens", len(content.split()))
+                else:
+                    tokens_out = len(content.split())
+                    
+                success = True
+                return content
             
         except requests.exceptions.Timeout:
             error_type = "timeout"
