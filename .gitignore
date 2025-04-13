@@ -1,5 +1,11 @@
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
 .venv/
 .env
+
+# Data
 data/
-__pycache__/
-*.py[cod]
