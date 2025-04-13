@@ -6,11 +6,29 @@ RESEARCH CONTENT:
 {research}
 
 TRANSCRIPT FORMAT:
-- Use "{host_name}:" for the host's lines
-- Use "{expert_name}:" for the expert's lines
-- Use "{beginner_name}:" for the beginner's lines
-- Put one blank line between speakers
-- For pauses or transitions, you can use [pause:X] where X is the number of seconds
+STRICT RULES:
+1. Speaker tags MUST use exact format without markdown:
+   - "{host_name}: " (no bold/formatting)
+   - "{expert_name}: " 
+   - "{beginner_name}: "
+2. Separate sections with --- on new line
+3. Add timestamps in [HH:MM:SS] format at section starts
+4. Put one blank line between speakers
+5. For pauses/transitions use [pause:Xs] where X is seconds
+
+EXAMPLE STRUCTURE:
+
+[00:00:00] INTRODUCTION
+{host_name}: Welcome...
+{expert_name}: Thank you...
+
+---
+
+[00:02:30] BACKGROUND
+{host_name}: Let's start with...
+{expert_name}: The key concept is...
+
+NO MARKDOWN ALLOWED. Never use **bold**, headers (# ##), or any formatting.
 
 PODCAST STRUCTURE:
 1. INTRODUCTION (1-2 minutes)
@@ -54,3 +72,10 @@ IMPORTANT GUIDELINES:
 8. Include some brief moments of casual banter to make it feel authentic
 
 Your transcript should capture the feeling of a real conversation between these three people while effectively teaching the audience about the subject.
+
+STRUCTURED NOTES SECTION:
+<notes>
+<pacing>...</pacing>
+<edits>...</edits> 
+<timing>Total duration: X minutes</timing>
+</notes>

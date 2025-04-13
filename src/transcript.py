@@ -10,6 +10,7 @@ import json
 import requests
 import time
 import inspect
+import re
 from pathlib import Path
 
 
@@ -559,7 +560,11 @@ class TranscriptGenerator:
     
     def _validate_transcript(self, transcript):
         """
-        Validate and clean the transcript format
+        Validate and clean the transcript format according to new requirements:
+        - Remove any markdown formatting
+        - Validate section dividers and timestamps
+        - Ensure proper speaker label formatting
+        - Handle structured notes section
         
         Args:
             transcript (str): The generated transcript
@@ -567,24 +572,69 @@ class TranscriptGenerator:
         Returns:
             str: Validated and cleaned transcript
         """
-        # Basic validation to ensure proper speaker format
-        host_name = self.config["transcript"].get("host_name", "Host").upper()
-        expert_name = self.config["transcript"].get("expert_name", "Expert").upper()
-        beginner_name = self.config["transcript"].get("beginner_name", "Beginner").upper()
+        # Get speaker names from config
+        host_name = self.config["transcript"].get("host_name", "Host")
+        expert_name = self.config["transcript"].get("expert_name", "Expert") 
+        beginner_name = self.config["transcript"].get("beginner_name", "Beginner")
+
+        # 1. Remove any markdown formatting
+        transcript = re.sub(r'\*\*', '', transcript)  # Remove bold
+        transcript = re.sub(r'#+\s*', '', transcript)  # Remove headers
+
+        # 2. Validate and format speaker labels
+        expected_speakers = [host_name, expert_name, beginner_name]
+        for speaker in expected_speakers:
+            # Ensure exact match of speaker labels with colon
+            transcript = re.sub(
+                rf'(?i)^{re.escape(speaker)}\s*:?',
+                f'{speaker}:',
+                transcript,
+                flags=re.MULTILINE
+            )
+
+        # 3. Validate section dividers and timestamps
+        lines = []
+        in_notes = False
+        for line in transcript.split('\n'):
+            # Remove section dividers but keep timestamps
+            if line.startswith('---'):
+                continue
+                
+            # Handle structured notes section
+            if line.strip().startswith('<notes>'):
+                in_notes = True
+                continue
+            if line.strip().startswith('</notes>'):
+                in_notes = False
+                continue
+            if in_notes:
+                continue
+
+            # Keep timestamp lines but validate format
+            if re.match(r'^\[\d{2}:\d{2}:\d{2}\]', line):
+                if not re.match(r'^\[\d{2}:\d{2}:\d{2}\] [A-Z]', line):
+                    logger.warning(f"Invalid timestamp format: {line}")
+                lines.append(line)
+            else:
+                lines.append(line)
+
+        transcript = '\n'.join(lines)
+
+        # 4. Final validation checks
+        required_patterns = [
+            rf'^{host_name}:',
+            rf'^{expert_name}:',
+            rf'^{beginner_name}:',
+            r'\[\d{2}:\d{2}:\d{2}\]'
+        ]
         
-        # Check if transcript contains expected speaker names
-        if not any(f"{name}:" in transcript for name in [host_name, expert_name, beginner_name]):
-            logger.warning("Transcript format may not be correct. Missing expected speaker labels.")
-        
-        # Ensure consistent formatting of speaker labels
-        for name in [host_name, expert_name, beginner_name]:
-            transcript = transcript.replace(f"{name.title()}:", f"{name}:")
-            transcript = transcript.replace(f"{name.lower()}:", f"{name}:")
-        
-        # Ensure transcript ends with a newline
-        if not transcript.endswith('\n'):
-            transcript += '\n'
-        
+        if not any(re.search(pattern, transcript, re.MULTILINE) for pattern in required_patterns):
+            logger.error("Transcript missing required elements (speaker labels/timestamps)")
+
+        # 5. Ensure proper line spacing
+        transcript = re.sub(r'\n{3,}', '\n\n', transcript)  # Max 2 newlines
+        transcript = transcript.strip() + '\n'  # Ensure ending newline
+
         return transcript
 
 
