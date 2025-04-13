@@ -1,0 +1,107 @@
+# Podcast Generator Configuration
+# --------------------------
+
+# Logging Configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  console_output: true
+  file_output: true
+
+# Research Generation
+research:
+  provider: openrouter  # ollama, openrouter, deepseek
+  model: anthropic/claude-3-opus-20240229  # For openrouter, use the full model path
+  temperature: 0.7
+  max_tokens: 4000
+  character_limit: 8000  # Limits the size of the research output
+
+# Transcript Generation
+transcript:
+  provider: openrouter  # ollama, openrouter, deepseek
+  model: anthropic/claude-3-sonnet-20240229  # For openrouter, use the full model path
+  temperature: 0.8
+  max_tokens: 8000
+  character_limit: 10000  # Limits the size of the transcript output
+  
+  # Speaker names that will appear in the transcript
+  host_name: HOST
+  expert_name: EXPERT
+  beginner_name: BEGINNER
+
+# Text-to-Speech
+tts:
+  provider: elevenlabs  # elevenlabs, gemini
+  
+  # For ElevenLabs
+  model_id: eleven_multilingual_v2
+  
+  # Host voice settings
+  host:
+    # ElevenLabs settings
+    voice_id: pNInz6obpgDQGcFmaJgB  # Adam (default)
+    stability: 0.5  # 0.0-1.0: Higher stability = less variation but more consistent
+    similarity_boost: 0.75  # 0.0-1.0: Higher similarity = closer to original voice
+    
+    # Gemini settings
+    voice_name: en-US-Studio-O
+    language_code: en-US
+    gender: MALE
+    speaking_rate: 1.0  # 0.25-4.0: 1.0 is normal speed
+    pitch: 0.0  # -20.0-20.0: 0.0 is normal pitch
+  
+  # Expert voice settings
+  expert:
+    # ElevenLabs settings
+    voice_id: EXAVITQu4vr4xnSDxMaL  # Sarah (default)
+    stability: 0.6
+    similarity_boost: 0.8
+    
+    # Gemini settings
+    voice_name: en-US-Neural2-D
+    language_code: en-US
+    gender: MALE
+    speaking_rate: 0.95
+    pitch: -1.0
+  
+  # Beginner voice settings
+  beginner:
+    # ElevenLabs settings
+    voice_id: yoZ06aMxZJJ28mfd3POQ  # Rachel (default)
+    stability: 0.4
+    similarity_boost: 0.7
+    
+    # Gemini settings
+    voice_name: en-US-Neural2-F
+    language_code: en-US
+    gender: FEMALE
+    speaking_rate: 1.05
+    pitch: 2.0
+
+# Audio Assembler
+assembler:
+  # Audio quality settings
+  sample_rate: 44100  # Hz
+  bitrate: "192k"
+  normalize_volume: true
+  target_dBFS: -16  # Target loudness level (dB)
+  
+  # Optional background music
+  intro_music: ""  # Path to intro music file (optional)
+  outro_music: ""  # Path to outro music file (optional)
+  
+  # Music fade settings (in milliseconds)
+  intro_fade_in: 1000
+  intro_fade_out: 2000
+  silence_after_intro: 1000
+  outro_fade_in: 2000
+  outro_fade_out: 5000
+  silence_before_outro: 1000
+
+# API URLs (can be modified if API endpoints change)
+api_urls:
+  ollama: http://localhost:11434/api/generate
+  openrouter: https://openrouter.ai/api/v1/chat/completions
+  deepseek: https://api.deepseek.com/v1/chat/completions
+  elevenlabs: https://api.elevenlabs.io/v1/text-to-speech
+  gemini: https://texttospeech.googleapis.com/v1/text:synthesize
+  referer: http://localhost

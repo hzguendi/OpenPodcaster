@@ -1,0 +1,19 @@
+2025-04-13 02:36:14,810 - __main__ - INFO - Starting podcast generation for subject: vinland saga
+2025-04-13 02:36:14,810 - __main__ - INFO - Output directory: data/2025-04-13_02-36-14
+2025-04-13 02:36:14,810 - __main__ - INFO - Step 1: Researching the subject
+2025-04-13 02:36:14,810 - src.research - INFO - Generating research for subject: vinland saga
+2025-04-13 02:36:15,936 - src.research - ERROR - Error generating research: 'choices'
+2025-04-13 02:36:15,937 - __main__ - ERROR - Error during podcast generation: 'choices'
+Traceback (most recent call last):
+  File "/Users/hzguendi/Downloads/playground/claude-auto/podcast_gen/./main.py", line 79, in main
+    generate_research(args.subject, research_file, config)
+  File "/Users/hzguendi/Downloads/playground/claude-auto/podcast_gen/src/research.py", line 171, in generate_research
+    content = generator.generate(subject)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hzguendi/Downloads/playground/claude-auto/podcast_gen/src/research.py", line 66, in generate
+    content = self._generate_openrouter(prompt)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hzguendi/Downloads/playground/claude-auto/podcast_gen/src/research.py", line 130, in _generate_openrouter
+    return response.json()["choices"][0]["message"]["content"]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'choices'

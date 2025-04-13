@@ -1,0 +1,43 @@
+You are a thorough researcher preparing content for an educational podcast.
+
+SUBJECT: {subject}
+
+Your task is to research this subject comprehensively and prepare a structured markdown document that will be used to create a podcast script. The podcast will feature a conversation between a host, an expert, and a beginner.
+
+Please structure your research as follows:
+
+## Background
+Provide essential background information about the subject. Include history, context, and foundational concepts that would be necessary for understanding the topic.
+
+## Key Concepts
+Identify and explain 3-5 key concepts related to the subject. For each concept:
+- Provide a clear definition
+- Explain its importance
+- Give specific examples that illustrate the concept
+
+## Common Misconceptions
+Identify 2-3 common misconceptions about the subject and explain why they are incorrect.
+
+## Practical Applications
+Describe real-world applications and relevance of the subject. How is this knowledge used? Who uses it and why?
+
+## Current Developments
+Discuss recent developments, breakthroughs, or evolving perspectives on the subject.
+
+## Expert Insights
+Provide some specialized knowledge or perspective that an expert would have. Include some technical details that could be simplified by the host or questioned by the beginner.
+
+## Beginner Questions
+List 5-7 questions that a beginner might ask about this subject. These will help guide the conversation in the podcast.
+
+## Resources for Further Learning
+Suggest 3-5 quality resources (books, websites, courses) for learning more about this subject.
+
+IMPORTANT GUIDELINES:
+1. Be accurate and comprehensive but concise
+2. Present balanced viewpoints where relevant
+3. Use clear language but don't oversimplify complex ideas
+4. Include specific examples to illustrate points
+5. Organize information logically with clear headings
+
+The research should be thorough but focused. Aim for depth rather than breadth. Your research will be used to create an engaging and educational podcast conversation.

@@ -1,0 +1,47 @@
+# Python version compatibility
+# This project works best with Python 3.8-3.12
+# Python 3.13+ requires additional setup (see README notes)
+
+# Core dependencies
+requests==2.31.0
+pyyaml==6.0.1
+python-dotenv==1.0.0
+colorama==0.4.6
+tqdm==4.66.1
+
+# Audio processing
+# pydub has issues with Python 3.13+ due to the removal of the audioop module
+pydub==0.25.1  # Optional: may not fully work on Python 3.13+
+ffmpeg-python==0.2.0
+
+# API clients
+openai==1.3.9  # For compatible API calls
+elevenlabs==0.2.27  # ElevenLabs API client
+google-cloud-texttospeech==2.14.1  # For Gemini TTS
+
+# Utilities
+rich==13.6.0  # For enhanced terminal output
+typer==0.9.0  # For CLI applications
+tenacity==8.2.3  # For retry logic with APIs
+
+# Data processing
+numpy>=1.24.0
+
+# Progress tracking and display
+alive-progress==3.1.5  # Alternative progress bar
+
+# System integration
+psutil==5.9.6  # For system resource monitoring
+
+# Additional requirements 
+# You'll need ffmpeg installed on your system:
+# For Ubuntu/Debian: sudo apt-get install ffmpeg
+# For macOS with Homebrew: brew install ffmpeg
+# For Windows: download from https://ffmpeg.org/download.html
+
+# Development and testing (optional)
+pytest==7.4.0
+pytest-cov==4.1.0
+black==23.10.1  # Code formatting
+pylint==3.0.2  # Linting
+mypy==1.6.1  # Type checking
