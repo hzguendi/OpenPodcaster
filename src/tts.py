@@ -44,10 +44,12 @@ class TTSGenerator:
         """
         self.config = config
         self.provider = config["tts"]["provider"]
-        self.api_key = config["api_keys"].get(self.provider)
         
-        if not self.api_key:
-            raise ValueError(f"API key for {self.provider} not found in configuration")
+        # Coqui doesn't require an API key
+        if self.provider != "coqui":
+            self.api_key = config["api_keys"].get(self.provider)
+            if not self.api_key:
+                raise ValueError(f"API key for {self.provider} not found in configuration")
         
         # Configure voice settings for each speaker
         self.voice_settings = {}
@@ -96,6 +98,8 @@ class TTSGenerator:
                     self._generate_elevenlabs(text, output_file, speaker_type)
                 elif self.provider == "gemini":
                     self._generate_gemini(text, output_file, speaker_type)
+                elif self.provider == "coqui":
+                    self._generate_coqui(text, output_file, speaker_type)
                 else:
                     raise ValueError(f"Unsupported TTS provider: {self.provider}")
                 
@@ -354,6 +358,67 @@ class TTSGenerator:
                 latency=latency
             )
     
+    def _generate_coqui(self, text, output_file, speaker_type):
+        """
+        Generate speech using Coqui TTS
+        
+        Args:
+            text (str): Text to convert to speech
+            output_file (Path): Path to save the audio file
+            speaker_type (Speaker): Speaker type enum
+        """
+        logger.debug(f"Generating speech with Coqui TTS for {speaker_type.value}")
+        
+        # Remove pause markers from text
+        clean_text = re.sub(r'\[pause:[\d\.]+\]', '', text).strip()
+        
+        # Get speaker-specific settings
+        voice_settings = self.voice_settings[speaker_type.value]
+        
+        try:
+            from TTS.api import TTS
+            
+            # Initialize Coqui TTS
+            model_name = voice_settings.get("model", "tts_models/en/ljspeech/tacotron2-DDC")
+            vocoder_name = voice_settings.get("vocoder", "vocoder_models/en/ljspeech/hifigan_v2")
+            
+            tts = TTS(model_name=model_name,
+                     progress_bar=False,
+                     gpu=False)
+            
+            # Generate speech
+            # Only pass language if using a multilingual model
+            tts_args = {
+                "text": clean_text,
+                "file_path": str(output_file),
+                "speaker": voice_settings.get("speaker")
+            }
+            if "vctk" in model_name or "your_tts" in model_name:  # Common multilingual models
+                tts_args["language"] = voice_settings.get("language", "en")
+            
+            tts.tts_to_file(**tts_args)
+            
+            logger.debug(f"Saved audio to {output_file}")
+            self._record_coqui_stats(success=True)
+            
+        except Exception as e:
+            self._record_coqui_stats(success=False)
+            logger.error(f"Error generating speech with Coqui TTS: {str(e)}")
+            raise
+            
+    def _record_coqui_stats(self, success=True):
+        """Record statistics for Coqui TTS usage"""
+        self.api_stats.record_request(
+            provider="coqui",
+            model="local",
+            request_type="tts",
+            success=success,
+            error_type=None if success else "generation_error",
+            tokens_in=0,  # Coqui doesn't use token billing
+            tokens_out=0,
+            latency=0  # Latency tracking not implemented for local inference
+        )
+
     def _generate_gemini(self, text, output_file, speaker_type):
         """
         Generate speech using Gemini API

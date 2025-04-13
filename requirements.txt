@@ -17,6 +17,7 @@ ffmpeg-python==0.2.0
 # API clients
 openai==1.3.9  # For compatible API calls
 elevenlabs==0.2.27  # ElevenLabs API client
+TTS>=0.20.2  # Official Coqui TTS package (correct PyPI name)
 google-cloud-texttospeech==2.14.1  # For Gemini TTS
 
 # Utilities

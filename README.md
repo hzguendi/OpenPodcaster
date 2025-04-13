@@ -16,7 +16,10 @@ A powerful, configurable tool for automatically generating educational podcasts 
   - Configurable for research and transcript generation
 - **Multiple AI Provider Support**:
   - Research/Transcript: Ollama, OpenRouter, DeepSeek
-  - TTS: ElevenLabs, Gemini
+  - TTS: 
+    - ElevenLabs (cloud)
+    - Gemini (cloud)
+    - Coqui (offline/local)
 - **Highly Configurable**:
   - Voice characteristics for each speaker
   - Audio quality settings
@@ -30,13 +33,13 @@ A powerful, configurable tool for automatically generating educational podcasts 
 
 ## 📋 Requirements
 
-- Python 3.8+ (preferably Python 3.8-3.12)
+- Python 3.8-3.12 (Coqui TTS requires Python <3.13)
 - FFmpeg installed on your system
-- API keys for your chosen providers
+- API keys for cloud providers (not needed for Coqui TTS)
 
 ### Python 3.13 Compatibility
 
-Python 3.13 removed the built-in `audioop` module that pydub depends on. The application handles this by:
+Python 3.13 removed the built-in `audioop` module that pydub depends on and has incompatibilities with Coqui TTS. The application handles this by:
 
 1. Automatically detecting missing modules and switching to a direct FFmpeg fallback
 2. Using simplified audio processing that concatenates files without advanced audio manipulation
@@ -87,7 +90,7 @@ The `config/conf.yml` file contains all configurables:
 
 - **Research settings**: Provider, model, temperature, token limits
 - **Transcript settings**: Character limits, speaker names
-- **TTS settings**: Voice IDs, speaking rates, stability
+- **TTS settings**: Voice IDs, speaking rates, stability (ElevenLabs, Gemini, Coqui)
 - **Audio settings**: Sample rate, bitrate, normalization
 - **API timeouts**: Custom timeout values for each provider
 - **API endpoints**: URLs for various provider APIs
@@ -127,13 +130,18 @@ Edit `conf.yml` to change voice settings:
 
 ```yaml
 tts:
+  provider: coqui  # Use local Coqui TTS
   host:
-    # ElevenLabs
-    voice_id: pNInz6obpgDQGcFmaJgB  # Change to a different voice ID
-    stability: 0.5
-    # Gemini
-    voice_name: en-US-Studio-O
-    speaking_rate: 1.1  # Increase speaking rate
+    # Coqui settings
+    model: tts_models/en/ljspeech/tacotron2-DDC
+    vocoder: vocoder_models/en/ljspeech/hifigan_v2
+    language: en
+  expert:
+    model: tts_models/en/vctk/vits
+    speaker: p225  # Specific speaker ID from VCTK dataset
+  beginner:
+    model: tts_models/multilingual/multi-dataset/your_tts
+    language: en
 ```
 
 ### Adding Background Music
